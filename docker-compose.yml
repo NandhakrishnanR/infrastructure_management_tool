@@ -1,0 +1,118 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: infrapilot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+      POSTGRES_DB: ${POSTGRES_DB:-infrapilot}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-infrapilot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infrapilot-network
+
+  # Redis Queue & State Store
+  redis:
+    image: redis:7-alpine
+    container_name: infrapilot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infrapilot-network
+
+  # REST API Service
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: infrapilot-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-root}@postgres:5432/${POSTGRES_DB:-infrapilot}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-infrapilot_super_secret_jwt_key_2026_dev}
+      FRONTEND_URL: http://localhost:80
+      DEMO_MODE: "true"
+      TERRAFORM_DIR: /app/infrastructure/terraform/demo
+      TERRAFORM_BINARY: /usr/local/bin/terraform
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./infrastructure/terraform/demo:/app/infrastructure/terraform/demo
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - infrapilot-network
+
+  # BullMQ Background Provisioning Worker
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: infrapilot-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-root}@postgres:5432/${POSTGRES_DB:-infrapilot}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-infrapilot_super_secret_jwt_key_2026_dev}
+      DEMO_MODE: "true"
+      TERRAFORM_DIR: /app/infrastructure/terraform/demo
+      TERRAFORM_BINARY: /usr/local/bin/terraform
+    volumes:
+      - ./infrastructure/terraform/demo:/app/infrastructure/terraform/demo
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - infrapilot-network
+
+  # React Frontend (Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: infrapilot-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - infrapilot-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  infrapilot-network:
+    driver: bridge

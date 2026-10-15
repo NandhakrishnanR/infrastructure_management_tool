@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DEVELOPER
+  ADMIN
+}
+
+enum RequestStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PROVISIONING
+  ACTIVE
+  FAILED
+  CANCELLED
+  DECOMMISSIONED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+enum PowerState {
+  RUNNING
+  STOPPED
+  TERMINATED
+}
+
+enum JobStatus {
+  QUEUED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id           String                  @id @default(uuid())
+  name         String
+  email        String                  @unique
+  passwordHash String
+  role         Role                    @default(DEVELOPER)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  requests     InfrastructureRequest[] @relation("UserRequests")
+  approvals    Approval[]              @relation("UserApprovals")
+  vms          VirtualMachine[]        @relation("UserVms")
+  auditLogs    AuditLog[]              @relation("UserAuditLogs")
+  quota        ResourceQuota?
+
+  @@index([email])
+}
+
+model ResourceQuota {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  maxVms    Int      @default(5)
+  maxCpu    Int      @default(16)
+  maxRamMb  Int      @default(32768)
+  maxDiskGb Int      @default(500)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InfrastructureRequest {
+  id              String                 @id @default(uuid())
+  requesterId     String
+  requester       User                   @relation("UserRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  provider        String                 @default("Demo Provider")
+  operatingSystem String
+  cpu             Int
+  ramMb           Int
+  diskGb          Int
+  region          String
+  environment     String
+  justification   String
+  status          RequestStatus          @default(PENDING_APPROVAL)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  approvals       Approval[]
+  virtualMachine  VirtualMachine?
+  provisioningJobs ProvisioningJob[]
+  statusHistory   RequestStatusHistory[]
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Approval {
+  id         String                @id @default(uuid())
+  requestId  String
+  request    InfrastructureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approverId String
+  approver   User                  @relation("UserApprovals", fields: [approverId], references: [id])
+  decision   ApprovalDecision
+  comment    String?
+  decidedAt  DateTime              @default(now())
+
+  @@index([requestId])
+  @@index([approverId])
+}
+
+model VirtualMachine {
+  id               String                @id @default(uuid())
+  requestId        String                @unique
+  request          InfrastructureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  ownerId          String
+  owner            User                  @relation("UserVms", fields: [ownerId], references: [id])
+  name             String
+  hostname         String
+  operatingSystem  String
+  provider         String                @default("Demo Provider")
+  cpu              Int
+  ramMb            Int
+  diskGb           Int
+  region           String
+  environment      String
+  powerState       PowerState            @default(RUNNING)
+  provisioningMode String                @default("DEMO_TERRAFORM")
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([ownerId])
+  @@index([powerState])
+}
+
+model ProvisioningJob {
+  id           String                @id @default(uuid())
+  requestId    String
+  request      InfrastructureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  status       JobStatus             @default(QUEUED)
+  attempts     Int                   @default(1)
+  stage        String                @default("QUEUED")
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  errorMessage String?
+  logs         String?               @db.Text
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([requestId])
+  @@index([status])
+}
+
+model RequestStatusHistory {
+  id          String                @id @default(uuid())
+  requestId   String
+  request     InfrastructureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fromStatus  RequestStatus
+  toStatus    RequestStatus
+  changedById String?
+  reason      String?
+  createdAt   DateTime              @default(now())
+
+  @@index([requestId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation("UserAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  result     String   @default("SUCCESS")
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}
