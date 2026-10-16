@@ -13,6 +13,9 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:prod": "node prisma/seed.js",
+    "generate:presentation": "tsx scripts/generatePresentation.ts",
+    "generate:docs": "python scripts/generateDocumentation.py",
     "test": "vitest run"
   },
   "dependencies": {

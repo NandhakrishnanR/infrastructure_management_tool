@@ -1,5 +1,7 @@
+/// <reference types="node" />
 import pptxgen from 'pptxgenjs';
 import path from 'path';
+
 
 async function generatePresentation() {
   console.log('📊 Generating InfraPilot 8-Slide Presentation...');
@@ -335,13 +337,41 @@ async function generatePresentation() {
         { text: 'Primary Keys & Relations', options: { bold: true, fill: { color: 'E2E8F0' } } },
         { text: 'Key Responsibilities & Constraints', options: { bold: true, fill: { color: 'E2E8F0' } } },
       ],
-      ['User', 'id (UUID), email (Unique)', 'Stores credentials (bcrypt), role (DEVELOPER/ADMIN), relation to quotas.'],
-      ['ResourceQuota', 'id, userId (Unique, 1-to-1)', 'Server-enforced limits for max VMs, CPU cores, RAM, and disk storage.'],
-      ['InfrastructureRequest', 'id, requesterId (FK)', 'Stores requested VM specs, environment, justification, and workflow state.'],
-      ['Approval', 'id, requestId (FK), approverId (FK)', 'Stores approval/rejection decision, mandatory comments, and decision timestamp.'],
-      ['VirtualMachine', 'id, requestId (Unique FK)', 'Inventory record. Guaranteed 1-to-1 mapping with approved request.'],
-      ['ProvisioningJob', 'id, requestId (FK)', 'Tracks BullMQ queue status, stage progression, attempts, and stdout/stderr logs.'],
-      ['AuditLog', 'id, actorId (FK, nullable)', 'Immutable append-only record of logins, approvals, and power state actions.'],
+      [
+        { text: 'User' },
+        { text: 'id (UUID), email (Unique)' },
+        { text: 'Stores credentials (bcrypt), role (DEVELOPER/ADMIN), relation to quotas.' },
+      ],
+      [
+        { text: 'ResourceQuota' },
+        { text: 'id, userId (Unique, 1-to-1)' },
+        { text: 'Server-enforced limits for max VMs, CPU cores, RAM, and disk storage.' },
+      ],
+      [
+        { text: 'InfrastructureRequest' },
+        { text: 'id, requesterId (FK)' },
+        { text: 'Stores requested VM specs, environment, justification, and workflow state.' },
+      ],
+      [
+        { text: 'Approval' },
+        { text: 'id, requestId (FK), approverId (FK)' },
+        { text: 'Stores approval/rejection decision, mandatory comments, and decision timestamp.' },
+      ],
+      [
+        { text: 'VirtualMachine' },
+        { text: 'id, requestId (Unique FK)' },
+        { text: 'Inventory record. Guaranteed 1-to-1 mapping with approved request.' },
+      ],
+      [
+        { text: 'ProvisioningJob' },
+        { text: 'id, requestId (FK)' },
+        { text: 'Tracks BullMQ queue status, stage progression, attempts, and stdout/stderr logs.' },
+      ],
+      [
+        { text: 'AuditLog' },
+        { text: 'id, actorId (FK, nullable)' },
+        { text: 'Immutable append-only record of logins, approvals, and power state actions.' },
+      ],
     ],
     {
       x: 0.8,

@@ -51,7 +51,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-infrapilot_super_secret_jwt_key_2026_dev}
-      FRONTEND_URL: http://localhost:80
+      FRONTEND_URL: http://localhost:5173
       DEMO_MODE: "true"
       TERRAFORM_DIR: /app/infrastructure/terraform/demo
       TERRAFORM_BINARY: /usr/local/bin/terraform
@@ -103,7 +103,7 @@ services:
     container_name: infrapilot-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "5173:80"
     depends_on:
       - api
     networks:
